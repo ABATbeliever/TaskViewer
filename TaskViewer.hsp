@@ -1,0 +1,116 @@
+//ABATBeliever
+onexit *exit
+#define TITLENAME	"TaskViewer"
+#uselib "kernel32.dll"
+	#func CreateToolhelp32Snapshot "CreateToolhelp32Snapshot" int,int
+	#func Module32First "Module32First" int , sptr
+	#func Module32Next "Module32Next" int , sptr
+	#func Process32First "Process32First" int , sptr
+	#func Process32Next "Process32Next" int , sptr
+	#func CloseHandle "CloseHandle" int
+#uselib "user32.dll"
+	#func GetWindowLongA "GetWindowLongA" int,int
+	#func SetWindowLongA "SetWindowLongA" int,int,int
+	#func SetWindowPos  "SetWindowPos"   int,int,int,int,int,int,int
+	#func MoveWindow    "MoveWindow"     int,int,int,int,int,int
+
+	dim er
+	dim  lb1
+	dim  lb2
+	sdim lbdata , 1024
+	sdim data   , 260
+	sdim mbdata , 1024
+	dim  hpsnap
+	dim  hmsnap
+	dim  p_entry, 74
+	dim  p_id , 64
+	dim  m_entry, 137
+
+	screen 0 , ginfo_dispx , ginfo_dispy
+	cls 1
+	title TITLENAME
+	width 600 , 400
+	GetWindowLongA hwnd , -16
+	SetWindowLongA hwnd , -16 , stat | 0x50000
+	SetWindowPos hwnd,0,0,0,0,0,0x23
+
+	pos 0 , 0 : button "çXêV" , *p_reload
+	objsize ginfo_winx , 110
+	pos 0 , 20: listbox lb1 , 270 , lbdata
+    pos 0 , 0: mesbox mbdata , 0 , 0
+	gosub *get_process
+
+	oncmd gosub *WM_SIZE , 0x0005
+	oncmd gosub *WM_CLOSE , 0x0010
+    MoveWindow objinfo(0,2) , 0 , 0 , ginfo_winx , 20 , 1
+
+goto *p_reload
+
+*main
+	if lb1 != lb2{
+		gosub *get_module
+		lb2 = lb1
+	}
+	wait 1
+goto *main
+
+*p_reload
+	gosub *get_process
+goto *main
+
+*get_process
+	CreateToolhelp32Snapshot 0x0f , 0
+	hpsnap = stat
+	if hpsnap==-1 : dialog "CreateToolhelp32Snapshot error" : stop
+
+	dim  p_id , 64
+	lbdata="" : notesel lbdata
+	p_entry(0) = 296
+	Process32First hpsnap , varptr(p_entry)
+	er = stat
+	repeat -1
+		if er == 0 : break
+		getstr data , p_entry , 36 , '\0'
+		noteadd data , -1
+		Process32Next hpsnap , varptr(p_entry)
+		er = stat
+	loop
+	objprm 1 , lbdata
+	objprm 1 , 0
+	CloseHandle hpsnap
+return
+
+*get_module
+	notesel lbdata : noteget data , lb1
+	title TITLENAME+" : "+data
+	mbdata = "" : notesel mbdata
+	m_entry(0) = 548
+	Module32First hmsnap , varptr(m_entry) : er = stat
+	repeat -1
+		if er == 0 : break
+		getstr data , m_entry , 288 , '\0'
+		noteadd data , -1
+		Module32Next hmsnap , varptr(m_entry) : er = stat
+	loop
+	objprm 2 , mbdata
+	CloseHandle hmsnap
+return
+
+*WM_SIZE
+	minus = 500
+	wait 3
+	MoveWindow objinfo(0,2) , 0 , 0 , ginfo_winx , 20 , 1
+	MoveWindow objinfo(1,2) , 0 , 20 , ginfo_winx , ginfo_dispy - minus , 1
+	MoveWindow objinfo(2,2) , 0 , 130 , 0 , 0 , 1
+return
+
+*WM_CLOSE
+	if hsnap!=0 : CloseHandle hpsnap
+return
+
+*exit
+dialog "Do you want to terminate?", 2, TITLENAME
+if stat = 7 : stop
+sendmsg hwnd, $112, $F020
+wait 30
+end
